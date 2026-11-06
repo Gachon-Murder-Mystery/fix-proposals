@@ -1,0 +1,2 @@
+FAIL batch ran with --isolated: every seed had its own pool
+exit 1

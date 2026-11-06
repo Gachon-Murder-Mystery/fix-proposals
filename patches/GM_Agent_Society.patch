@@ -1,0 +1,89 @@
+diff --git a/agent_runtime.py b/agent_runtime.py
+index 715e246..b84693d 100644
+--- a/agent_runtime.py
++++ b/agent_runtime.py
+@@ -189,6 +189,10 @@ class AgentWorker:
+             self.player, self.context = None, None
+             return session["role"]
+         if self.context != session["context_key"]:
++            # [FIX-C1] The player runtime belongs to this persistent pool member, so it gets the
++            # member's own pool credential to read/write its cross-game learning
++            # (pool/learning/get|update, pool/feedback). Game secrets stay behind role tokens.
++            session = dict(session, pool_credentials=dict(self.identity.credentials))
+             self.player = self.factory(self.identity.bind(**session["credentials"]), session, self.catalog)
+             self.context = session["context_key"]
+             self.runtimes.append(self.player)
+diff --git a/competitive_settings.json b/competitive_settings.json
+index 5187613..3529546 100644
+--- a/competitive_settings.json
++++ b/competitive_settings.json
+@@ -18,7 +18,9 @@
+     "min_players": 3,
+     "max_players": 12,
+     "successor_scope": "active_then_pool",
+-    "relationship_effects": true
++    "relationship_effects": true,
++    "time_limit_seconds": 0,
++    "unsolved_score": 0
+   },
+   "allowed_actions": {
+     "movement": ["move", "stay"],
+diff --git a/run_scenario.py b/run_scenario.py
+index 77f87cd..865e587 100644
+--- a/run_scenario.py
++++ b/run_scenario.py
+@@ -70,8 +70,10 @@ def run(client, operator_token, seed=7, rules=None, player_factory=None, provena
+         time_limit=3600, progress=False):
+     """Bootstrap the pool, create one game and step every pool member until the GM has reported."""
+     operator = client.bind(operator_token=operator_token)
+-    pool = operator.call("pool/bootstrap", pool_id="society")
+-    created = operator.call("games/create", pool_id="society", seed=seed, rules=rules or {},
++    pool = operator.call("pool/bootstrap", pool_id="society")  # reuses the persistent pool if the DB has one
++    # [FIX-C2] The engine (and through it every player) learns the wall-clock budget.
++    rules = dict(rules or {}, time_limit_seconds=int(time_limit))
++    created = operator.call("games/create", pool_id="society", seed=seed, rules=rules,
+                             provenance=provenance or {})
+     game_id = created["game_id"]
+     workers = {a["agent_id"]: AgentWorker(client.bind(**operator.call("pool/credentials", agent_id=a["agent_id"])),
+@@ -100,6 +102,18 @@ def run(client, operator_token, seed=7, rules=None, player_factory=None, provena
+     gm_worker = next(w.gm for w in workers.values() if w.gm.gm is not None and w.gm.gm.reported)
+     record = gm_worker.gm.report()
+     players = [p for w in workers.values() for p in w.runtimes]
++    # [FIX-C3] Game-end hook. Players never observe the ended game themselves (after a
++    # time_out only the GM is stepped), so the runner tells each runtime the game is over.
++    # B uses it to read its official feedback and store what it learned for the next game.
++    end_hooks = []
++    for p in players:
++        hook = getattr(p, "on_game_end", None)
++        if callable(hook):
++            try:
++                end_hooks.append(hook(state) or "ok")
++            except Exception as exc:  # learning must never break the official record
++                end_hooks.append(f"failed: {type(exc).__name__}: {exc}"[:200])
++                print(f"on_game_end failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+     verdicts = [v for a in state["announcements"] if a["kind"] == "deduction_result" for v in a["verdicts"]]
+     return {"game_id": game_id, "seed": seed, "resolution": state["resolution"], "cycles": state["cycle_id"],
+             "players": len(state["role_assignments"]), "winners": [v for v in verdicts if v["winner"]],
+@@ -110,7 +124,11 @@ def run(client, operator_token, seed=7, rules=None, player_factory=None, provena
+             "scenario": [line["text"] for line in record["scenario"]],
+             "player_runtime": sorted({type(p).__name__ for p in players}) or None,
+             "player_fallbacks": sum(getattr(p, "fallbacks", 0) for p in players),
++            # [FIX-C5] model-level stand-ins inside the player (B counts them, see FIX-B9)
++            "model_calls": sum(getattr(p, "model_calls", 0) for p in players),
++            "model_fallbacks": sum(getattr(p, "model_fallbacks", 0) for p in players),
+             "live_llm": any(getattr(p, "live_llm", False) for p in players),
++            "end_hooks": end_hooks,
+             "elapsed_seconds": round(time.monotonic() - started, 1)}
+ 
+ 
+@@ -140,7 +158,9 @@ def main():
+                   "player": args.player or "gm_coordinator.agent_runtime:ScriptedPlayerRuntime",
+                   "command": " ".join(["run_scenario"] + sys.argv[1:])[:500]}
+     with tempfile.TemporaryDirectory() as temporary:
+-        data = Path(args.data) if args.data else Path(temporary) / "scenario.sqlite3"
++        # [FIX-C4] Resolve now: the engine runs with cwd=Game-engine, so a relative path
++        # used to create the DB under Game-engine/ instead of where the user asked.
++        data = Path(args.data).resolve() if args.data else Path(temporary) / "scenario.sqlite3"
+         data.parent.mkdir(parents=True, exist_ok=True)
+         with engine_process(engine_dir, data) as (url, token):
+             result = run(EngineV1Client(url, timeout=30), token, args.seed, rules, factory, provenance,

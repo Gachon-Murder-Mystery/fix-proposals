@@ -1,0 +1,12 @@
+== Game-engine (existing + test_fixes)
+Ran 166 tests in 37.101s
+OK
+== GM_Agent_Society
+ERROR: test_required_statements_meet_every_tier (GM_Agent_Society.test_agent_runtime.AgentRuntimeTests.test_required_statements_meet_every_tier)
+Ran 88 tests in 203.664s
+FAILED (errors=1, skipped=8)
+== root tests (incl. test_agent_experience)
+Ran 19 tests in 0.028s
+OK
+== Agent_Reasoning/schema.py self-test
+schema self-test passed

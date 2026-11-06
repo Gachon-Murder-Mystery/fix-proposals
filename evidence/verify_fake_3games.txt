@@ -1,0 +1,20 @@
+PASS P1 one pool of 16 player agents with 16 distinct MBTI (16 agents)
+PASS P1 seed 1: all 12 players come from that pool
+PASS P2 seed 1: 12 distinct agents / characters / MBTI
+PASS P3 seed 1: every first prompt reports the right past (0 returning agents, 12 newcomers, 12/12 prompts seen)
+PASS seed 1: 12 game-end hooks ran
+PASS seed 1: the model answered (112 calls, 0 rule-based stand-ins)
+PASS P1 seed 2: all 12 players come from that pool
+PASS P2 seed 2: 12 distinct agents / characters / MBTI
+PASS P3 seed 2: every first prompt reports the right past (8 returning agents, 4 newcomers, 12/12 prompts seen)
+PASS seed 2: 12 game-end hooks ran
+PASS seed 2: the model answered (119 calls, 0 rule-based stand-ins)
+PASS P1 seed 3: all 12 players come from that pool
+PASS P2 seed 3: 12 distinct agents / characters / MBTI
+PASS P3 seed 3: every first prompt reports the right past (12 returning agents, 0 newcomers, 12/12 prompts seen)
+PASS seed 3: 12 game-end hooks ran
+PASS seed 3: the model answered (124 calls, 0 rule-based stand-ins)
+PASS engine history and strategy_state advanced for every agent that played
+
+0 failure(s)
+exit 0

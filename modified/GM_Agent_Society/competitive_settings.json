@@ -1,0 +1,77 @@
+{
+  "schema_version": "gm-settings-v1.3.1",
+  "ruleset": "competitive-v1.3",
+  "basis": {
+    "spec": "GAME_SPEC_v1.3.md",
+    "engine": "Game-engine main 919d34d (competitive.py RULES, competitive_rules.py, catalog)",
+    "data": "v12_data.json == Game-engine/competitive_catalog.json",
+    "updated": "2026-10-26",
+    "note": "engine_rules/allowed_actions/scoring are checked against the engine catalog at GM start (settings.verify_engine). engine_enforced is a reference copy of values only the engine applies; changing it here changes nothing."
+  },
+  "model_version": "gpt-6-luna",
+  "engine_rules": {
+    "gm_lease": 40,
+    "player_lease": 40,
+    "question_timeout": 30,
+    "trade_timeout": 30,
+    "deadline_cycles": 120,
+    "min_players": 3,
+    "max_players": 12,
+    "successor_scope": "active_then_pool",
+    "relationship_effects": true,
+    "time_limit_seconds": 0,
+    "unsolved_score": 0
+  },
+  "allowed_actions": {
+    "movement": ["move", "stay"],
+    "interaction": ["explore", "question", "prepare", "pass"],
+    "deduction": ["accuse", "pass"]
+  },
+  "scoring": {
+    "ranks": [100, 70, 50, 30],
+    "dead": -20,
+    "survivor": 0,
+    "missions": {"하": 10, "중": 20, "상": 30}
+  },
+  "deadline_warnings": [30, 10],
+  "gm_report": {
+    "weights": {"completion": 0.35, "balance": 0.25, "exploration": 0.20, "record": 0.20},
+    "success_threshold": 0.7,
+    "legitimate_endings": ["winner", "all_dead", "deadline"]
+  },
+  "role_policy": {
+    "jobs": 12,
+    "maturity_k": 5,
+    "score_min": -20,
+    "score_span": 180
+  },
+  "gm_runtime": {
+    "heartbeat_seconds": 10,
+    "poll_seconds": 0.5
+  },
+  "player_runtime": {
+    "heartbeat_every_idle_steps": 5
+  },
+  "engine_enforced": {
+    "dice": {"base": 2, "prepared_bonus": 1, "threshold": "8 - stat", "threshold_range": [2, 6]},
+    "stat_by_approach": {"explore": "observe", "question": "speech", "negotiate": "speech", "interrogate": "pressure", "threaten": "pressure"},
+    "relationship_threshold_shift": {"at_or_above_70": -1, "at_or_below_30": 1, "applies_to": ["question", "negotiate"]},
+    "explore_yield_by_successes": [0, 1, 1, 2],
+    "question_disclosure_by_successes": ["none", "ambiguous 1", "definite 1 or ambiguous 2", "definite 1 + ambiguous 2"],
+    "relationship": {
+      "initial": 50, "range": [0, 100], "directed": true,
+      "deltas": {"question_success": 5, "negotiate_success": 5, "question_or_negotiate_failure": -5,
+                 "interrogate": -5, "threaten": -10, "trade_fulfilled": 10, "trade_broken": -20},
+      "mbti_multiplier": {"E": 1.5, "I": 0.5},
+      "multiplier_owner": "the character whose value changes (receiver of the action)"
+    },
+    "failure_risk": {"interrogate": "target refuses asker until end of next cycle",
+                     "threaten": "one held clue exposed to target as possession"},
+    "npc_two_success_definite": {"base": 0.5,
+                                 "T": {"negotiate": 0.2, "question": 0.0, "interrogate": -0.1, "threaten": -0.2},
+                                 "F": {"relation_at_or_above_70": 0.2, "relation_at_or_below_30": -0.2}},
+    "npc_trade": {"accept": {"J": 0.4, "P": 0.7}, "honor": {"J": 1.0, "P": 0.5}},
+    "corpse_decay_per_cycle": 1,
+    "narration": "closed truth-preserving grammar: pick one of response_options.indirect[].narrative_options"
+  }
+}
